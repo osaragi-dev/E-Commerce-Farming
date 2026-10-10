@@ -147,14 +147,14 @@ test('insufficient stock rolls back the final approval and cancellation', functi
     expect($variant->fresh()->stock_available)->toBe('5.000');
 });
 
-test('paid cancellation requires both order update and payment void permissions', function (string $permission): void {
+test('paid cancellation requires both order delete and payment void permissions', function (string $permission): void {
     $actor = User::factory()->create();
     $actor->givePermissionTo(Permission::findOrCreate($permission, 'web'));
     $order = Order::factory()->create(['status' => OrderStatus::Shipping]);
     Payment::factory()->for($order)->create(['status' => PaymentStatus::Paid]);
     expect(fn () => $order->cancel($actor, 'Returned'))->toThrow(AuthorizationException::class);
     expect($order->fresh()->status)->toBe(OrderStatus::Shipping);
-})->with(['Update:Order', 'Void:Payment']);
+})->with(['Delete:Order', 'Void:Payment', 'Update:Order']);
 
 test('inactive approval settings do not delay order cancellation', function (): void {
     $setting = ApprovalSetting::where('module_code', 'void_payment')->firstOrFail();
@@ -165,6 +165,26 @@ test('inactive approval settings do not delay order cancellation', function (): 
     $order->cancel($this->actor, 'Returned');
     expect($order->fresh()->status)->toBe(OrderStatus::Cancelled);
     expect($payment->voidRequests()->sole()->approval_status)->toBe('approved');
+});
+
+test('a role with delete and payment void permissions can cancel a paid order without update permission', function (): void {
+    $actor = User::factory()->create();
+    $role = Role::findOrCreate('order_canceller', 'web');
+    foreach (['ViewAny:Order', 'Delete:Order', 'Void:Payment'] as $permission) {
+        $role->givePermissionTo(Permission::findOrCreate($permission, 'web'));
+    }
+    $actor->assignRole($role);
+    $this->actingAs($actor);
+    ApprovalSetting::where('module_code', 'void_payment')->firstOrFail()->update(['is_active' => false]);
+    $order = Order::factory()->create(['status' => OrderStatus::Shipping]);
+    $payment = Payment::factory()->for($order)->create(['status' => PaymentStatus::Paid]);
+
+    Livewire::test(ManageOrders::class)
+        ->callTableAction('cancelOrder', $order, ['reason' => 'Goods returned'])
+        ->assertHasNoTableActionErrors();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and($payment->fresh()->status)->toBe(PaymentStatus::Void);
 });
 
 test('frozen system prevents requesting and completing order cancellation', function (bool $requested): void {

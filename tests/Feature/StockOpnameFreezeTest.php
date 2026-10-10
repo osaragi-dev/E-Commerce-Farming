@@ -224,7 +224,7 @@ test('cancelling a pending reservation does not restore stock', function (): voi
     ]);
     $actor = User::factory()->create();
 
-    $actor->givePermissionTo(Permission::findOrCreate('Update:Order', 'web'));
+    $actor->givePermissionTo(Permission::findOrCreate('Delete:Order', 'web'));
     $order->cancel($actor, 'Customer request');
 
     expect($order->refresh()->stock_reservation_status)->toBe(StockReservationStatus::Released)

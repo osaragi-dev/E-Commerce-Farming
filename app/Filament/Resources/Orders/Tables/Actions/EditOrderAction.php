@@ -29,7 +29,7 @@ class EditOrderAction
     public static function make(): EditAction
     {
         return EditAction::make()
-            ->authorize('update')
+            ->authorize('deleteAny')
             ->visible(fn (Order $record): bool => $record->status !== OrderStatus::Cancelled)
             ->disabled(fn (): bool => SystemFreezeState::current()->is_frozen)
             ->mutateRecordDataUsing(fn (Order $record, array $data): array => [
@@ -78,7 +78,7 @@ class EditOrderAction
                 return DB::transaction(function () use ($record, $data, $action): Order {
                     $statePath = 'mountedActions.'.$action->getNestingIndex().'.data.';
                     $order = Order::query()->lockForUpdate()->findOrFail($record->id);
-                    Gate::authorize('update', $order);
+                    Gate::authorize('deleteAny', Order::class);
                     if ($order->status === OrderStatus::Cancelled) {
                         throw ValidationException::withMessages([$statePath.'customer_id' => 'Cancelled orders cannot be edited.']);
                     }

@@ -40,6 +40,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Unique;
 use Override;
@@ -118,6 +119,13 @@ class RoleResource extends Resource implements HasTableExport
             ->label(__('filament-shield::filament-shield.resources'))
             ->badge(static::getResourceTabBadgeCount())
             ->schema([
+                TextInput::make('permission_search')
+                    ->label('Search')
+                    ->placeholder('Search resources or permissions...')
+                    ->prefixIcon('heroicon-o-magnifying-glass')
+                    ->default('')
+                    ->dehydrated(false)
+                    ->columnSpanFull(),
                 Grid::make()->schema(static::getResourceEntitiesSchema())
                     ->columns(static::shield()->getGridColumns()),
             ]);
@@ -140,6 +148,12 @@ class RoleResource extends Resource implements HasTableExport
             ->map(fn (array $options, string $resource): Section => Section::make($resource::getNavigationLabel())
                 ->description(static::moduleDescription($resource))
                 ->icon($resource::getNavigationIcon())
+                ->visibleJs(Js::from(Str::lower(implode(' ', [
+                    $resource::getNavigationLabel(),
+                    static::moduleDescription($resource),
+                    ...array_keys($options),
+                    ...array_values($options),
+                ]))).".includes((\$get('permission_search') || '').trim().toLowerCase())")
                 ->compact()
                 ->schema([
                     static::getCheckboxListFormComponent(

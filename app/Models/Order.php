@@ -564,7 +564,7 @@ class Order extends Model
                 }
                 $reason = $approvedRequest->reason;
             } elseif ($actor !== null) {
-                Gate::forUser($actor)->authorize('update', $this);
+                Gate::forUser($actor)->authorize('delete', $this);
             } elseif (in_array($this->status, [OrderStatus::Packing, OrderStatus::Shipping, OrderStatus::ReadyForPickup, OrderStatus::Done, OrderStatus::PickedUp], true) || $payment?->status === PaymentStatus::Paid) {
                 throw ValidationException::withMessages(['void' => 'An authorized administrator must cancel this order.']);
             }

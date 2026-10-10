@@ -110,7 +110,7 @@ test('order edit ignores payment amount and status changes for transfers', funct
 test('payment editing permission does not grant confirmation permission', function (): void {
     $user = User::factory()->sso()->create();
     $user->assignRole(Role::findOrCreate('payment_editor', 'web'));
-    foreach (['ViewAny:Order', 'View:Order', 'Update:Order', 'ViewAny:Payment', 'View:Payment', 'Update:Payment'] as $permission) {
+    foreach (['ViewAny:Order', 'View:Order', 'DeleteAny:Order', 'ViewAny:Payment', 'View:Payment', 'Update:Payment'] as $permission) {
         Permission::findOrCreate($permission, 'web');
         $user->givePermissionTo($permission);
     }

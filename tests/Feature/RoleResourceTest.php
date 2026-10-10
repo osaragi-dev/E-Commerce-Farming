@@ -31,6 +31,25 @@ beforeEach(function (): void {
     $this->actingAs($this->actor);
 });
 
+test('searching role permissions preserves selections in other resource groups when saving', function (): void {
+    $role = Role::factory()->create();
+    $role->givePermissionTo(Permission::findOrCreate('ViewAny:Product', 'web'));
+
+    Livewire::test(EditRole::class, ['record' => $role->getRouteKey()])
+        ->assertFormFieldExists('permission_search')
+        ->assertSee('Search resources or permissions...')
+        ->fillForm([
+            'permission_search' => 'Orders',
+            OrderResource::class => ['ViewAny:Order', 'DeleteAny:Order'],
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($role->fresh()->getPermissionNames()->all())
+        ->toContain('ViewAny:Product', 'ViewAny:Order', 'DeleteAny:Order')
+        ->not->toContain('Orders');
+});
+
 test('Repack permissions can be saved and reloaded while SSO is unavailable', function (): void {
     Http::preventStrayRequests();
     $role = Role::factory()->create(['sso_id' => 501]);

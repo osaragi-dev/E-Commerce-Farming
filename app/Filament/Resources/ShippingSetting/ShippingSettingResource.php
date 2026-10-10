@@ -25,11 +25,6 @@ class ShippingSettingResource extends Resource
 
     protected static ?string $modelLabel = 'Shipping Setting';
 
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
-
     public static function canCreate(): bool
     {
         return false;

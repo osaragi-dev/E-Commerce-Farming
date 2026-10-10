@@ -45,6 +45,6 @@ class CancelOrderAction
                     ->success()
                     ->send();
             })
-            ->authorize('update');
+            ->authorize('delete');
     }
 }

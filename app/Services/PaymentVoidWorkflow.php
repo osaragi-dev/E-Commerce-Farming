@@ -48,7 +48,7 @@ class PaymentVoidWorkflow
         return DB::transaction(function () use ($payment, $actor, $reason, $cancelOrder): PaymentVoidRequest {
             $payment = $this->lockPayment($payment);
             if ($cancelOrder) {
-                Gate::forUser($actor)->authorize('update', $payment->order);
+                Gate::forUser($actor)->authorize('delete', $payment->order);
             }
             $this->assertEligible($payment, $cancelOrder);
             if ($payment->hasActiveVoidRequest()) {
@@ -85,7 +85,7 @@ class PaymentVoidWorkflow
             abort_unless($request->requested_by === $actor->id && $request->approval_status === 'revised', 403);
             Gate::forUser($actor)->authorize('Void:Payment');
             if ($request->cancel_order) {
-                Gate::forUser($actor)->authorize('update', $payment->order);
+                Gate::forUser($actor)->authorize('delete', $payment->order);
             }
             $this->assertEligible($payment, $request->cancel_order);
             $request->update(['reason' => $reason, 'approval_status' => 'requested', 'approval_level' => 1, 'updated_by' => $actor->id]);

@@ -209,7 +209,7 @@ test('cash confirmation preserves the current fulfillment stage and rejects stal
 
 test('cancelling an unpaid cash order marks its payment unpaid-cancel and releases stock', function (): void {
     $actor = User::factory()->create();
-    $actor->givePermissionTo(Permission::findOrCreate('Update:Order', 'web'));
+    $actor->givePermissionTo(Permission::findOrCreate('Delete:Order', 'web'));
     $order = Order::factory()->create(['payment_method' => PaymentMethod::Cash, 'status' => OrderStatus::WaitingPayment]);
     $variant = ProductVariant::factory()->create(['stock_available' => 10, 'stock_reserved' => 0]);
     $item = OrderItem::factory()->for($order)->create(['product_variant_id' => $variant->id, 'quantity' => 2]);
