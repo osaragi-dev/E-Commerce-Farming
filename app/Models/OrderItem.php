@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\HasUuidPrimaryKey;
+use App\Services\SystemFreezeGuard;
+use Database\Factories\OrderItemFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable([
+    'order_id',
+    'product_id',
+    'product_variant_id',
+    'product_name',
+    'variant_name',
+    'unit',
+    'quantity',
+    'unit_price',
+    'price_quantity',
+    'subtotal',
+])]
+class OrderItem extends Model
+{
+    /** @use HasFactory<OrderItemFactory> */
+    use HasFactory, HasUuidPrimaryKey;
+
+    public $timestamps = true;
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $item): void {
+            app(SystemFreezeGuard::class)->assertNotFrozen();
+        });
+    }
+
+    protected $attributes = ['price_quantity' => '1.000'];
+
+    protected function casts(): array
+    {
+        return [
+            'price_quantity' => 'decimal:3',
+            'quantity' => 'decimal:3',
+            'unit_price' => 'decimal:2',
+            'subtotal' => 'decimal:2',
+        ];
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function productVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+}

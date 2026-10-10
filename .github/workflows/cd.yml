@@ -1,0 +1,166 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-build:
+    # Temporarily paused while GitHub-hosted Actions quota is unavailable.
+    if: ${{ false }}
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, fileinfo, intl, mbstring, xmlreader, zip
+          coverage: none
+
+      - name: Validate Composer configuration
+        run: composer validate --strict
+
+      - name: Install PHP dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+  pest:
+    # Temporarily paused while GitHub-hosted Actions quota is unavailable.
+    if: ${{ false }}
+    name: Pest Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: sccr_farming_test
+          POSTGRES_USER: runner
+          POSTGRES_PASSWORD: testing
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U runner -d sccr_farming_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, fileinfo, intl, mbstring, pdo_pgsql, pgsql, xmlreader, zip
+          coverage: none
+
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-php-8.4-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
+      - name: Create environment file
+        run: cp .env.example .env
+
+      - name: Run Pest tests
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: sccr_farming_test
+          DB_USERNAME: runner
+          DB_PASSWORD: testing
+        run: composer test -- --fail-on-warning
+
+  deploy:
+    name: Deploy
+    runs-on: [self-hosted, "${{ github.ref_name == 'main' && 'farming_prod' || 'farming' }}"]
+    timeout-minutes: 15
+    env:
+      APP_DIR: ${{ github.ref_name == 'main' && (vars.PROD_APP_DIR || '/home/agungfarmgarden/farming') || (vars.DEV_APP_DIR || '/home/farming/farming') }}
+      DEPLOY_BRANCH: ${{ github.ref_name }}
+
+    steps:
+      - name: Deploy Laravel application
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "$APP_DIR/.git" ]; then
+            echo "::error::Application checkout was not found at $APP_DIR. Set the matching DEV_APP_DIR or PROD_APP_DIR repository variable to the correct path."
+            exit 1
+          fi
+
+          cd "$APP_DIR"
+
+          git fetch origin "$DEPLOY_BRANCH"
+
+          if [ -f vendor/autoload.php ]; then
+            php artisan down --retry=60 --refresh=15
+          fi
+
+          git reset --hard "origin/$DEPLOY_BRANCH"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
+
+          if [ -f package-lock.json ]; then
+            npm ci
+            npm run build
+          fi
+
+          rm -f bootstrap/cache/*.php
+          php artisan optimize:clear
+          composer run-script post-autoload-dump
+
+          php artisan migrate --force
+          php artisan config:cache
+          php artisan event:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan queue:restart
+
+      - name: Disable maintenance mode
+        if: always()
+        run: |
+          cd "$APP_DIR"
+          php artisan up || true

@@ -1,0 +1,73 @@
+<?php
+
+namespace App\Filament\Resources\{{ plural }};
+
+use App\Filament\Contracts\HasTableExport;
+use App\Filament\Exports\TableExportDefinition;
+use App\Filament\Resources\{{ plural }}\Pages\Manage{{ plural }};
+use App\Filament\Resources\{{ plural }}\Schemas\{{ class }}Form;
+use App\Filament\Resources\{{ plural }}\Schemas\{{ class }}Infolist;
+use App\Filament\Resources\{{ plural }}\Tables\{{ plural }}Table;
+use App\Models\{{ class }};
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+
+class {{ class }}Resource extends Resource implements HasTableExport
+{
+    protected static ?string $model = {{ class }}::class;
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public static function form(Schema $schema): Schema
+    {
+        return {{ class }}Form::configure($schema);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return {{ class }}Infolist::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return {{ plural }}Table::configure($table);
+    }
+
+    public static function exportDefinition(): TableExportDefinition
+    {
+        return new TableExportDefinition(
+            title: '{{ plural }}',
+            columns: [
+                'name' => 'Name',
+                'description' => 'Description',
+                'is_active' => 'Active',
+                'record_status' => 'Record Status',
+                'createdBy.name' => 'Created By',
+                'created_at' => 'Created At',
+                'updatedBy.name' => 'Updated By',
+                'updated_at' => 'Updated At',
+                'deletedBy.name' => 'Deleted By',
+                'deleted_at' => 'Deleted At',
+            ],
+            relationships: ['createdBy', 'updatedBy', 'deletedBy'],
+        );
+    }
+
+    public static function getPages(): array
+    {
+        return ['index' => Manage{{ plural }}::route('/')];
+    }
+
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getRecordRouteBindingEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class]);
+    }
+}

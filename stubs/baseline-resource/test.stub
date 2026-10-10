@@ -1,0 +1,16 @@
+<?php
+
+use App\Enums\RecordStatus;
+use App\Models\{{ class }};
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+test('{{ table }} use the baseline lifecycle', function (): void {
+    $record = {{ class }}::factory()->create();
+
+    expect($record->id)->toBeString()
+        ->and($record->record_status)->toBe(RecordStatus::Saved)
+        ->and($record->markAsDraft())->toBeTrue()
+        ->and($record->fresh()->record_status)->toBe(RecordStatus::Draft);
+});

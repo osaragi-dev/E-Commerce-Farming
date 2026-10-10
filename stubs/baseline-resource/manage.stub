@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Filament\Resources\{{ plural }}\Pages;
+
+use App\Filament\Actions\LifecycleCreateAction;
+use App\Filament\Resources\{{ plural }}\{{ class }}Resource;
+use Filament\Resources\Pages\ManageRecords;
+
+class Manage{{ plural }} extends ManageRecords
+{
+    protected static string $resource = {{ class }}Resource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [LifecycleCreateAction::make()];
+    }
+}
